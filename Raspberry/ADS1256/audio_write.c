@@ -823,7 +823,9 @@ int  main()
   uint8_t buf[3];
   int count = 0;
   int beg_ch = 3;
-  int end_ch = 5;
+  int end_ch = 4;
+  int buff_state = 1;
+  int byte_count = 0;
   if (!bcm2835_init())
     return 1;
   /*
@@ -860,23 +862,43 @@ int  main()
   ADS1256_CfgADC(ADS1256_GAIN_1, ADS1256_30000SPS);  
   ADS1256_StartScan(0);
   ch_num = 8;
+
   //if (ADS1256_Scan() == 0)
   //{
   //continue;
   //}
+
+  
   while(1)
     {
+
+      if(byte_count == 60000 - 1){
+	fclose(f);
+	buff_state = -1*buff_state;
+	byte_count = 0;
+      }
+
+      if(buff_state < 0 && byte_count == 0){
+	f = fopen("audio1.txt", "w");
+	printf("HIT\n");
+        bsp_DelayUS(500000);
+      }
+      else if(buff_state > 0 && byte_count == 0)
+	f = fopen("audio2.txt", "w");	
+      
+      if(byte_count < 60000)
+	byte_count++;
+
+      
       while((ADS1256_Scan() == 0));
       for (i = beg_ch; i < end_ch; i++)
-	{
+      {
 	  adc[i] = ADS1256_GetAdc(i);
 	  volt[i] = (adc[i] * 100) / 167;
-	}
-      
-      f = fopen("audio2.txt", "w");
+      }
 
       for (i = beg_ch; i < end_ch; i++)
-	{
+      {
 	  buf[0] = ((uint32_t)adc[i] >> 16) & 0xFF;
 	  buf[1] = ((uint32_t)adc[i] >> 8) & 0xFF;
 	  buf[2] = ((uint32_t)adc[i] >> 0) & 0xFF;
@@ -885,8 +907,6 @@ int  main()
 	      
 	  if(f == NULL)
 	    {printf("ERROR OPENING FILE!\n");}
-
-	  
 
 	  iTemp = volt[i];/* uV  */
 	  if (iTemp < 0)
@@ -901,15 +921,16 @@ int  main()
 	  
 	  fprintf(f, "CNT: %d\t%i\n", count, (uint32_t)iTemp);
 	  
-	}
-
-      fclose(f);
+      }
+      
       count++;
 
-      printf("\33[%dA", (int)ch_num);  
+      //printf("\33[%dA", (int)ch_num);  
       //bsp_DelayUS(100000);
       bsp_DelayUS(500);      
     }
+
+  
   bcm2835_spi_end();
   bcm2835_close();
   
