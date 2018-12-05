@@ -1,0 +1,2 @@
+ads1256_test:ads1256_test.o
+	gcc audio_write.c -o write_test -lbcm2835
